@@ -1,5 +1,6 @@
 .vscode
 .git
 .idea
-
+login_data.txt
 *.log
+__pycache__
