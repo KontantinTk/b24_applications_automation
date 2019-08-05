@@ -23,11 +23,18 @@ class ApplicationWatcher:
         self.openPortal()
         self.loginInPortal()
         self.openApp()
+        # self.makeScreenshow("login_form.png")
+        # self.closeBrowser()
+       
         self.selectAppFrame()
         self.filterByB24()
         self.refreshList()
         self.selectPortals()
-        self.getList()
+        # self.selectB24()
+        self.filterByCity()
+        self.getAllPortals()
+        self.getErrors()
+        # self.getList()
 
     def getDriver(self):
         return self.__get_driver()
@@ -61,17 +68,23 @@ class ApplicationWatcher:
     def selectAppFrame(self):
         self.if_state("in_app")
         self.__get_driver().switch_to_frame(1)
-        self.__get_driver().switch_to_frame("partner_application")
-        self.__state = "in_frame"
+        while not self.__state == "in_frame":
+            try:
+                time.sleep(1)
+                self.__get_driver().switch_to_frame("partner_application")
+                self.__state = "in_frame"
+            except:
+                print('Couldnt select frame')
+        
 
     def filterByB24(self):
         self.if_state("in_frame")
-        time.sleep(6)
+        time.sleep(5)
         self.__get_driver().find_element_by_css_selector("input[name=FIND]").click()
 
-        time.sleep(2)
-        self.__get_driver().find_element_by_css_selector(".main-ui-control.main-ui-select").click()
-        time.sleep(2)
+        # time.sleep(2)
+        self.__get_driver().find_element_by_css_selector("[data-name=PARTNERSHIP].main-ui-control.main-ui-select").click()
+        # time.sleep(2)
 
         self.__get_driver().execute_script('''
         frameElement.contentDocument.querySelector(
@@ -84,11 +97,29 @@ class ApplicationWatcher:
 
         self.__get_driver().find_element_by_css_selector("button.main-ui-filter-find").click()
 
+    def filterByCity(self, city_name='Москва'):
+        self.if_state("in_frame")
+        time.sleep(5)
+        error = True
+        while error:
+            try:
+                time.sleep(1)
+                self.__get_driver().find_element_by_css_selector("input[name=FIND]").click()
+
+                city_input = self.__get_driver().find_element_by_css_selector("[name=CITY].main-ui-control.main-ui-control-string")
+                city_input.clear()
+                city_input.send_keys(city_name)
+
+                self.__get_driver().find_element_by_css_selector("button.main-ui-filter-find").click()
+                error = False
+            except:
+                pass
+
     def refreshList(self, times=1):
         self.if_state("in_frame")
-        time.sleep(2)
+        time.sleep(1)
         while times > 0 or times < 0:
-            time.sleep(5)
+            time.sleep(1)
             self.if_state("in_frame")
             self.__get_driver().execute_script('''
             frameElement.contentDocument.getElementsByClassName("main-ui-search")[0].click();
@@ -99,14 +130,14 @@ class ApplicationWatcher:
 
     def selectB24(self):
         self.if_state("in_frame")
-        time.sleep(2)
+        time.sleep(1)
         self.__get_driver().execute_script('''
         frameElement.contentDocument.querySelector('[data-type=filter][data-indicator=B24]').click();
         ''')
     
     def selectPortals(self):
         self.if_state("in_frame")
-        time.sleep(2)
+        time.sleep(1)
         self.__get_driver().execute_script('''
         frameElement.contentDocument.querySelector('[data-type=filter][data-indicator=PORTALS]').click();
         ''')
@@ -114,17 +145,47 @@ class ApplicationWatcher:
     def getList(self):
         self.if_state("in_frame")
         time.sleep(2)
-        
-        table_list = self.__get_driver().find_elements_by_css_selector('#b24_partner_application_table tbody tr td:nth-child(2)')
-        for element in table_list:
-            print("innerText is " + element.get_attribute("innerText")) 
 
-        table_list = self.__get_driver().find_elements_by_css_selector('#b24_partner_application_table tbody tr td:nth-child(4)')
+        self.__get_driver().find_element_by_css_selector('#menu-popup-b24_partner_application_grid_page_size_menu [data-value="20"]').click()
+        
+        table_list = self.__get_driver().find_elements_by_css_selector('#b24_partner_application_table tbody tr td:nth-child(6)')
+
+        buttons = []
         for element in table_list:
-            print("innerText is " + element.get_attribute("innerText")) 
- 
+            button = element.find_element_by_css_selector('.partner-application-b24-list-item-submit-link-cnr.partner-application-b24-application .js-partner-submit-application')
+            buttons.append(button)
+
+        return buttons
+
+    def getAllPortals(self):
+        time.sleep(2)
+        error = True
+        while error:
+            try:
+                time.sleep(1)
+                self.__get_driver().find_element_by_css_selector('[data-value=GET_ALL_PORTALS]').click()
+                error = False
+            except:
+                pass
+
+    def getErrors(self):
+        error = True
+        while error:
+            try:
+                time.sleep(1)
+                text = self.__driver.\
+                find_element_by_css_selector('.partner-application-b24-list-automatic-action-errors-item-cnr').\
+                get_attribute('innerText')
+
+                print(text)
+                error = False
+            except:
+                pass
 
     #TOOLS
+
+    def makeScreenshow(self, filename):
+        self.__get_driver().save_screenshot(filename)
 
     def if_state(self, state):
         if self.__state == state:
@@ -132,7 +193,6 @@ class ApplicationWatcher:
         else:
             print("State is not " + state + ", but " + self.__state + " is set instead!")
             self.closeBrowser()
-
 
     def getLoginData(self):
         file_name = "login_data.txt"
@@ -162,25 +222,34 @@ class ApplicationWatcher:
         else:
             self.__init_driver()
 
-    def __get_options(self):
-        if self.__driver:
-            return self.__options
-        else:
-            self.__init_options()
-
     def __init_driver(self):
+        options = self.__get_options()
+
+        print(options)
+
         self.__driver = webdriver.Chrome(
             executable_path=self.__path_to_driver, 
-            chrome_options=self.__get_options())
+            chrome_options=options)
+
+        self.__driver.set_window_size(1920, 1080)
 
         return self.__driver
 
-    def __init_options(self):
-        self.__options = webdriver.ChromeOptions()
-        # self.__options.add_argument("headless")
-        # self.__options.add_argument('window-size=900x900')
+    def __get_options(self):
+        if not self.__options:
+            self.__init_options()
 
         return self.__options
+
+    def __init_options(self):
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument('--window-size=1920x1080')
+        
+
+        self.__options = options
+        return options
 
         
         
