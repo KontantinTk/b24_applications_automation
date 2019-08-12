@@ -4,3 +4,7 @@
 login_data.txt
 *.log
 __pycache__
+
+*.jar
+
+b24auto/configs/main.json
